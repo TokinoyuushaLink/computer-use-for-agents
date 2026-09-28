@@ -15,28 +15,28 @@ Custom-drawn interfaces such as many ImGui applications may not expose useful UI
 
 ## Usage
 
-Load the function into your PowerShell session, then call it as `computerUse1`.
+Load the function into your PowerShell session, then call it as `computerUse`.
 
 ```powershell
-computerUse1 -Help
+computerUse -Help
 ```
 
 ### Screenshots and windows
 
 ```powershell
 # Capture the primary display
-computerUse1 shot -screen
+computerUse shot -screen
 
 # Capture all displays
-computerUse1 shot -all
+computerUse shot -all
 
 # Capture a window or process
-computerUse1 shot -window "Notepad"
-computerUse1 shot -process "notepad"
+computerUse shot -window "Notepad"
+computerUse shot -process "notepad"
 
 # List windows and focus one
-computerUse1 windows
-computerUse1 focus -window "Notepad"
+computerUse windows
+computerUse focus -window "Notepad"
 ```
 
 Screenshots return a JSON result containing the image path, dimensions, scale, and target window. Coordinates from the latest screenshot are remembered for later mouse commands.
@@ -45,28 +45,28 @@ Screenshots return a JSON result containing the image path, dimensions, scale, a
 
 ```powershell
 # Click at coordinates in the latest screenshot
-computerUse1 click 320 180
+computerUse click 320 180
 
 # Double-click, right-click, or use raw screen coordinates
-computerUse1 click 320 180 -double
-computerUse1 click 320 180 -button right
-computerUse1 click 786 220 -abs
+computerUse click 320 180 -double
+computerUse click 320 180 -button right
+computerUse click 786 220 -abs
 
 # Drag and scroll
-computerUse1 drag 300 200 500 400
-computerUse1 scroll down 5 700 600
+computerUse drag 300 200 500 400
+computerUse scroll down 5 700 600
 
 # Type text and press keys
-computerUse1 type "hello"
-computerUse1 type "search terms" -enter
-computerUse1 key ctrl+a
-computerUse1 key alt+f4
+computerUse type "hello"
+computerUse type "search terms" -enter
+computerUse key ctrl+a
+computerUse key alt+f4
 ```
 
 Add `-shot` to capture the screen again after an action:
 
 ```powershell
-computerUse1 click 320 180 -shot
+computerUse click 320 180 -shot
 ```
 
 ### UI Automation
@@ -74,11 +74,11 @@ computerUse1 click 320 180 -shot
 List controls exposed by the target window:
 
 ```powershell
-computerUse1 ui
-computerUse1 ui -window "Notepad"
-computerUse1 ui -type Edit
-computerUse1 ui -name "Save"
-computerUse1 ui -raw
+computerUse ui
+computerUse ui -window "Notepad"
+computerUse ui -type Edit
+computerUse ui -name "Save"
+computerUse ui -raw
 ```
 
 Each returned control includes its name, type, AutomationId when available, and center point. `-raw` includes non-interactive elements.
@@ -86,34 +86,34 @@ Each returned control includes its name, type, AutomationId when available, and 
 Click a control by name or AutomationId:
 
 ```powershell
-computerUse1 click -name "Save"
-computerUse1 click -id "SearchEditBox"
+computerUse click -name "Save"
+computerUse click -id "SearchEditBox"
 ```
 
 If several controls match, narrow the search with `-type` or `-id`, or select a match with `-index`:
 
 ```powershell
-computerUse1 click -name "Open" -type Button -index 2
+computerUse click -name "Open" -type Button -index 2
 ```
 
 Use `-invoke` to invoke a supported UIA control pattern instead of sending a mouse click:
 
 ```powershell
-computerUse1 click -name "Save" -invoke
+computerUse click -name "Save" -invoke
 ```
 
 Set an editable control's value:
 
 ```powershell
-computerUse1 set -name "File name" "report.txt"
-computerUse1 set -id "SearchEditBox" "query" -enter
+computerUse set -name "File name" "report.txt"
+computerUse set -id "SearchEditBox" "query" -enter
 ```
 
 Read text exposed by UIA:
 
 ```powershell
-computerUse1 text -name "File name"
-computerUse1 text -type document
+computerUse text -name "File name"
+computerUse text -type document
 ```
 
 ### Target selection
@@ -121,8 +121,8 @@ computerUse1 text -type document
 Commands accept `-window` or `-process` to choose a target:
 
 ```powershell
-computerUse1 ui -window "Notepad"
-computerUse1 click -name "Save" -process "notepad"
+computerUse ui -window "Notepad"
+computerUse click -name "Save" -process "notepad"
 ```
 
 Without an explicit target, the function uses the last screenshot's window when available, otherwise the foreground window.
@@ -134,7 +134,7 @@ By default, mouse coordinates refer to the most recent screenshot. The function 
 Use `-abs` when passing raw screen coordinates:
 
 ```powershell
-computerUse1 click 786 220 -abs
+computerUse click 786 220 -abs
 ```
 
 ## Limitations
