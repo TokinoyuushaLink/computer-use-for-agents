@@ -1,162 +1,100 @@
 # computer-use-for-agents
 
-A PowerShell desktop-control function for taking screenshots and interacting with Windows applications through mouse, keyboard, and UI Automation (UIA).
+**A Windows desktop computer-use CLI for AI agents.** Use it as a local CUA when an agent has no native computer-use tool, cannot reach the Windows desktop, or needs a command-line interface for screenshots, mouse and keyboard input, and UI Automation (UIA).
+
+`computerUse.exe` is a small C# desktop automation tool designed for coding agents and other CLI-based agents. It turns common Windows interactions into commands and returns machine-readable JSON, so an agent can inspect a result, choose its next action, and continue the task.
 
 ## Features
 
-- Capture the full screen, all displays, a window, or a screen region.
-- List and focus windows by title or process name.
+- Capture the screen, all displays, a window, or a screen region.
+- Find and focus top-level windows by title, process name, or HWND.
 - Click, double-click, move, drag, scroll, type text, and press key chords.
-- Read UI Automation controls and text from applications that expose them.
-- Click controls by name or AutomationId, and set editable values.
-- Map screenshot coordinates back to screen coordinates, including when screenshots are downscaled.
+- Inspect standard Windows controls through Microsoft UI Automation (UIA).
+- Find controls by name, AutomationId, and control type; click them, set values, read text, and wait for them to appear or disappear.
+- Use coordinates from a screenshot, including when the image was scaled down or the target window was offset on the desktop.
+- Keep screenshot-coordinate state separate between agents with `-session`.
+- Return one-line JSON results and meaningful process exit codes for normal commands.
 
-Custom-drawn interfaces such as many ImGui applications may not expose useful UIA controls. Use screenshots and coordinates for those interfaces.
+UI Automation works when the target application exposes accessible controls. Custom-drawn interfaces—including many ImGui apps, games, and canvas-based tools—may expose little or no UIA information. For those interfaces, capture a screenshot and interact with coordinates.
 
-## Usage
+## Advantages
 
-Load the function into your PowerShell session, then call it as `computerUse`.
+- **Works from an agent's CLI loop:** issue a command, parse its JSON, inspect a screenshot or control tree, then choose the next action.
+- **Combines UIA and screenshots:** use named controls where available and image coordinates where the interface is custom drawn.
+- **Preserves coordinate context:** later mouse commands can use coordinates from a prior screenshot; `-session` prevents concurrent agents from sharing that state.
+- **Targets windows explicitly:** select a window by title, process, or handle instead of relying only on whichever window happens to be in front.
 
-```powershell
-computerUse -Help
-```
+This is a local Windows desktop-control utility. It does not provide browser DOM access or make inaccessible UIA controls accessible.
 
-### Screenshots and windows
+## Requirements
 
-```powershell
-# Capture the primary display
-computerUse shot -screen
+- Windows x64
+- .NET 8 Desktop Runtime x64 to run the framework-dependent executable
+- .NET 8 SDK to build from source
 
-# Capture all displays
-computerUse shot -all
+The runtime is not bundled in the published executable. No PowerShell installation or `.ps1` file is needed.
 
-# Capture a window or process
-computerUse shot -window "Notepad"
-computerUse shot -process "notepad"
+## Build
 
-# List windows and focus one
-computerUse windows
-computerUse focus -window "Notepad"
-```
-
-Screenshots return a JSON result containing the image path, dimensions, scale, and target window. Coordinates from the latest screenshot are remembered for later mouse commands.
-
-### Mouse and keyboard
+The repository uses a flat layout: the `.cs` files, `computerUse.csproj`, and `app.manifest` are in the repository root. From that directory, run:
 
 ```powershell
-# Click at coordinates in the latest screenshot
-computerUse click 320 180
-
-# Double-click, right-click, or use raw screen coordinates
-computerUse click 320 180 -double
-computerUse click 320 180 -button right
-computerUse click 786 220 -abs
-
-# Drag and scroll
-computerUse drag 300 200 500 400
-computerUse scroll down 5 700 600
-
-# Type text and press keys
-computerUse type "hello"
-computerUse type "search terms" -enter
-computerUse key ctrl+a
-computerUse key alt+f4
+dotnet publish .\computerUse.csproj -c Release -r win-x64 --self-contained false -o .\publish
 ```
 
-Add `-shot` to capture the screen again after an action:
+The single-file executable is written to `publish\computerUse.exe`.
 
-```powershell
-computerUse click 320 180 -shot
-```
+## Agent workflow
 
-### UI Automation
+1. List windows and choose a target:
 
-List controls exposed by the target window:
+   ```powershell
+   .\computerUse.exe windows
+   .\computerUse.exe windows -process notepad
+   ```
 
-```powershell
-computerUse ui
-computerUse ui -window "Notepad"
-computerUse ui -type Edit
-computerUse ui -name "Save"
-computerUse ui -raw
-```
+2. Inspect its UIA controls or capture a screenshot:
 
-Each returned control includes its name, type, AutomationId when available, and center point. `-raw` includes non-interactive elements.
+   ```powershell
+   .\computerUse.exe ui -process notepad -limit 30
+   .\computerUse.exe shot -process notepad -session agent1
+   ```
 
-Click a control by name or AutomationId:
+3. Use a control selector when UIA exposes the control, or use coordinates from the screenshot:
 
-```powershell
-computerUse click -name "Save"
-computerUse click -id "SearchEditBox"
-```
+   ```powershell
+   .\computerUse.exe click -name "Save" -process notepad
+   .\computerUse.exe click 320 180 -session agent1 -shot
+   ```
 
-If several controls match, narrow the search with `-type` or `-id`, or select a match with `-index`:
+4. Read the JSON result, inspect any returned screenshot, and capture again after a layout change before reusing coordinates.
 
-```powershell
-computerUse click -name "Open" -type Button -index 2
-```
+Each screenshot command returns a JSON object containing the image path, dimensions, scale, and target information. An agent can read that image from the returned path before choosing coordinates.
 
-Use `-invoke` to invoke a supported UIA control pattern instead of sending a mouse click:
+## Commands
 
-```powershell
-computerUse click -name "Save" -invoke
-```
+| Command   | Purpose                                                      |
+| --------- | ------------------------------------------------------------ |
+| `shot`    | Capture the screen, all displays, a window, or a region      |
+| `windows` | List or filter top-level windows                             |
+| `focus`   | Focus a window                                               |
+| `ui`      | List UIA controls                                            |
+| `click`   | Click by screenshot coordinates, control name, or AutomationId |
+| `set`     | Set a UIA editable value                                     |
+| `text`    | Read text from a UIA element                                 |
+| `wait`    | Wait for a UIA element to appear or disappear                |
+| `move`    | Move the pointer                                             |
+| `drag`    | Drag between two points                                      |
+| `scroll`  | Scroll up or down                                            |
+| `type`    | Type text, optionally followed by Enter                      |
+| `key`     | Press a key or key chord such as `ctrl+s` or `alt+f4`        |
 
-Set an editable control's value:
+Run `computerUse.exe -help` for the full command syntax and options, including `-window`, `-process`, `-hwnd`, `-session`, `-shot`, `-abs`, `-timeout`, and `-duration`.
 
-```powershell
-computerUse set -name "File name" "report.txt"
-computerUse set -id "SearchEditBox" "query" -enter
-```
+Normal commands print one JSON line with an `ok` field. Exit codes are `0` for success, `1` for invalid arguments, `2` when a window or UI element is not found, and `3` for other failures. `-help` prints text help.
 
-Read text exposed by UIA:
+## Safety and limitations
 
-```powershell
-computerUse text -name "File name"
-computerUse text -type document
-```
+Mouse and keyboard commands act on the real desktop. Confirm the selected window and screenshot coordinates before sending input. Coordinates can become stale after a window moves, resizes, or changes layout; capture a fresh screenshot in the same session first.
 
-### Target selection
-
-Commands accept `-window` or `-process` to choose a target:
-
-```powershell
-computerUse ui -window "Notepad"
-computerUse click -name "Save" -process "notepad"
-```
-
-Without an explicit target, the function uses the last screenshot's window when available, otherwise the foreground window.
-
-## Coordinates
-
-By default, mouse coordinates refer to the most recent screenshot. The function remembers the screenshot's origin and scale, so coordinates continue to work when the screenshot is downscaled or the target window is offset on the desktop.
-
-Use `-abs` when passing raw screen coordinates:
-
-```powershell
-computerUse click 786 220 -abs
-```
-
-## Limitations
-
-- UIA can only inspect controls that an application exposes through its accessibility interface.
-- Games, canvas-based interfaces, and many custom-drawn UIs may expose few or no useful UIA controls. Use screenshot-based coordinates for those.
-- UIA `Invoke` operations depend on the control supporting the relevant pattern. Some operations can open modal dialogs.
-- Coordinates can become stale after a window moves, resizes, or changes layout. Capture a fresh screenshot before choosing new coordinates.
-
-## Command reference
-
-```text
-shot     Capture a screen, window, or region
-windows  List matching windows
-focus    Focus a window
-ui       List UIA controls
-text     Read text from a UIA element
-click    Click by coordinates, name, or AutomationId
-set      Set a UIA editable value
-move     Move the pointer
-drag     Drag between two points
-scroll   Scroll up or down
-type     Type text, optionally followed by Enter
-key      Press one or more key chords
-```
+UIA results depend on the target application's accessibility provider. `Invoke` is available for controls that support the relevant UIA pattern; some controls can open modal dialogs. Use screenshot-based interaction when UIA does not expose the required control.
